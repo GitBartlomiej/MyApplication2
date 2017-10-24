@@ -14,6 +14,10 @@ import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.TextView;
 
+import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
+
 import java.util.Timer;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -23,7 +27,7 @@ import java.util.concurrent.Future;
 public class MainActivity extends AppCompatActivity implements SensorEventListener{
 
     private TextView xText, yText, zText, roadText;
-//    private EditText buffText;
+    private GraphView graphView;
     private Sensor mySensor;
     private SensorManager SM;
     private RoadCounter roadCounter;
@@ -32,6 +36,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     long startTime = 0L, timeInMilliseconds = 0L, updateTime = 0L, timeSwapBuff = 0L;
     Handler customHandler = new Handler();
     ExecutorService updateTimeThreadExecutor =  Executors.newSingleThreadExecutor();
+    LineGraphSeries<DataPoint> graphSeries;
+
     Runnable updateTimeThread = new Runnable(){
         public void run(){
             timeInMilliseconds = SystemClock.uptimeMillis() - startTime;
@@ -50,11 +56,16 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     + "średnia pochodna przyspieszenia: " + roadCounter.da_by_dtMean + "\n"
                     +  "Licznik" + roadCounter.signChangeCounter);
 //            roadText.setText(String.format("%2d", secs) + ":" + String.format("%3d", milliseconds));
+            graphSeries.appendData(new DataPoint(milliseconds, acc[0]), true, 1500);
+            graphView.addSeries(graphSeries);
+            if(graphSeries.getHighestValueX()>1499){
+                graphView.removeAllSeries();
+            }
             customHandler.postDelayed(this, 0);
            }
     };
-    Future updateTimeThreadFuture = updateTimeThreadExecutor.submit(updateTimeThread);
 
+    Future updateTimeThreadFuture = updateTimeThreadExecutor.submit(updateTimeThread);
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -69,11 +80,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         yText = (TextView)findViewById(R.id.yText);
         zText = (TextView)findViewById(R.id.zText);
         roadText = (TextView)findViewById(R.id.Road);
-//        buffText = (EditText)findViewById(R.id.BufforTEXT);
 
         startButton = (Button)findViewById(R.id.START);
         stopButton  = (Button)findViewById(R.id.STOP);
         resizeButton  = (Button)findViewById(R.id.Resize);
+
+        graphView = (GraphView)findViewById(R.id.graph);
+        graphSeries  = new LineGraphSeries<DataPoint>();
 
         startButton.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
@@ -87,8 +100,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
                 updateTimeThreadFuture.cancel(true);
                 customHandler.removeCallbacks(updateTimeThread);
-//                roadText.setText("Przebuta droga: " + roadCounter.road+"m"
-//                                + "aktualny czas: " + timeInMilliseconds);
                 startTime=0;
                 roadCounter.reset();
             }
