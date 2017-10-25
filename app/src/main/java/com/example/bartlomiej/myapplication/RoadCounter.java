@@ -51,8 +51,7 @@ public class RoadCounter {
         }
     }
 
-    public void reset()
-    {
+    public void reset(){
         road = 0;
         velocity = 0;
         i_minus_one_time = 0;
@@ -78,20 +77,26 @@ public class RoadCounter {
     }
 
     public void CountRoad(float[] acceleration, double i_time){
-//        if(acceleration[1]< 9.2 && acceleration[0]>2)
-//            return;
+        if(acceleration[1]< 9.3 || acceleration[0]>2){
+            accMean = 0;
+            accVec.clear();
+            for (int i=0; i<accVec.capacity(); i++){
+                accVec.add(0.0f);
+            }
+            constAccVector.clear();
+            return;
+        }
         double deltaTime = (i_time - i_minus_one_time)/1000;
 //        accChange(acceleration, deltaTime);
         for(int i = accVec.capacity()-1; i >= 1; i--){
             accVec.set(i,accVec.elementAt(i-1));
         }
-        accVec.set(0,acceleration[0]);
-        double sumOfAcc=0;
-        for(double acc : accVec)
-        {
-            sumOfAcc+=acc;
+        accVec.set(0, acceleration[0]);
+        double sumOfAcc = 0;
+        for(double acc : accVec){
+            sumOfAcc += acc;
         }
-        accMean = sumOfAcc/buffor;
+        accMean = sumOfAcc / buffor;
 //        if(accMean>1)
 //            accMean = 0;
         constMeanReset(acceleration);
