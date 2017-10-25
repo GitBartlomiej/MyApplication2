@@ -21,7 +21,7 @@ public class RoadCounter {
     public double da_by_dt;
     public double da_by_dtMean;
     float acceleration_i_minus_one;
-    int buffor = 2;
+    int buffor = 4;
     int constBuffor = 10;
 
     public RoadCounter(){
