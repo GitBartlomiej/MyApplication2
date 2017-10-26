@@ -83,6 +83,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 roadCounter.reset();
             }
         });
+        resizeButton.setOnClickListener(new View.OnClickListener(){
+            public void onClick(View v){
+                roadCounter.signChangeCounter = 1;
+                roadCounter.accMean = 0;
+                roadCounter.road = 0;
+            }
+        });
     }
 
     Runnable updateTimeThread = new Runnable(){
@@ -97,7 +104,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             roadText.setText("Przyspieszenie a="+acc[0] +"\n"
 //                    +String.format("%2d", secs) + ":"
 //                    + String.format("%3d", milliseconds) + "\n"
-//                    + "Przebyta droga: " + roadCounter.road+"m" + "\n"
+                    + "Przebyta droga: " + roadCounter.road+"m" + "\n"
 //                    + "aktualny czas: " + timeInMilliseconds + "\n"
 //                    + "pochodna przyspieszenia: " + roadCounter.da_by_dt + "\n"
 //                    + "średnia pochodna przyspieszenia: " + roadCounter.da_by_dtMean + "\n"
@@ -115,17 +122,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             graphView.getGridLabelRenderer().setLabelFormatter(new DefaultLabelFormatter() {
                 @Override
                 public String formatLabel(double value, boolean isValueX) {
-                    if(isValueX)
-                        return super.formatLabel((int)(value/1000), isValueX)+ "s";
-                    else
-                        return super.formatLabel(value, isValueX);
+                if(isValueX)
+                    return super.formatLabel((int)(value/1000), isValueX)+ "s";
+                else
+                    return super.formatLabel(value, isValueX);
                 }
             });
-
-            if(graphSeries.getHighestValueX() % 10000 == 0){
-//                customHandler.postDelayed(onReset, 0);
-            }
-            customHandler.postDelayed(this, 0);
+            customHandler.postDelayed(this, 100);
         }
     };
 
@@ -147,7 +150,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         return values;
     }
     Future updateTimeThreadFuture = updateTimeThreadExecutor.submit(updateTimeThread);
-
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {

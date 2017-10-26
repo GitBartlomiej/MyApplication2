@@ -77,7 +77,7 @@
                 android:id="@+id/Resize"
                 android:layout_width="112dp"
                 android:layout_height="wrap_content"
-                android:text="Resize" />
+                android:text="Resize/reset" />
 
         </LinearLayout>
 

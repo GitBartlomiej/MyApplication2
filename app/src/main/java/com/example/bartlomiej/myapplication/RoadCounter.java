@@ -23,6 +23,7 @@ public class RoadCounter {
     float acceleration_i_minus_one;
     int buffor = 4;
     int constBuffor = 10;
+    Boolean oneStep;
 
     public RoadCounter(){
         road = 0;
@@ -77,13 +78,13 @@ public class RoadCounter {
     }
 
     public void CountRoad(float[] acceleration, double i_time){
-        if(acceleration[1]< 9.3 || acceleration[0]>2){
-            accMean = 0;
-            accVec.clear();
-            for (int i=0; i<accVec.capacity(); i++){
-                accVec.add(0.0f);
-            }
-            constAccVector.clear();
+        if(acceleration[1] < 9.3 || acceleration[0] > 2 /*|| Math.abs(acceleration[0]) < 0.2*/){
+//            accMean = 0;
+//            accVec.clear();
+//            for (int i=0; i<accVec.capacity(); i++){
+//                accVec.add(0.0f);
+//            }
+//            constAccVector.clear();
             return;
         }
         double deltaTime = (i_time - i_minus_one_time)/1000;
@@ -100,9 +101,12 @@ public class RoadCounter {
 //        if(accMean>1)
 //            accMean = 0;
         constMeanReset(acceleration);
-//        velocity += Math.abs(acceleration[0]) * deltaTime;
-//        road  += velocity * deltaTime;
-//        i_minus_one_time = i_time;
+        if(oneStep) {
+            velocity = Math.abs(accMean) * deltaTime;
+            road += velocity * deltaTime;
+            road /= signChangeCounter;
+        }
+        i_minus_one_time = i_time;
     }
 
     private void accChange(float[] acceleration, double deletaTime){
@@ -187,12 +191,17 @@ public class RoadCounter {
             sum += acc;
         }
         bigAccMean = sum / constBuffor;
-        if(Math.abs(accMean) <= Math.abs(bigAccMean) + 0.02f){
+        if (Math.abs(accMean) <= Math.abs(bigAccMean) + 0.1f){
+            oneStep = false;
             accMean = 0;
             accVec.clear();
-            for (int i=0; i<accVec.capacity(); i++){
+            for (int i = 0; i < accVec.capacity(); i++){
                 accVec.add(0.0f);
             }
+        }
+        else if (oneStep == false) {
+            signChangeCounter++;
+            oneStep = true;
         }
     }
 }
