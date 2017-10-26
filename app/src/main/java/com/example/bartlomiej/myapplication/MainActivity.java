@@ -10,19 +10,14 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorManager;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.RadioButton;
 import android.widget.TextView;
 
 import com.jjoe64.graphview.DefaultLabelFormatter;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.GridLabelRenderer;
-import com.jjoe64.graphview.helper.DateAsXAxisLabelFormatter;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
-import java.util.Timer;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -37,10 +32,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private RoadCounter roadCounter;
     private Button startButton, stopButton, resizeButton;
     private float[] acc;
-    long startTime = 0L, timeInMilliseconds = 0L, updateTime = 0L, timeSwapBuff = 0L;
+    double startTime = 0.0, timeInMilliseconds = 0.0, updateTime = 0.0;
     Handler customHandler = new Handler();
     ExecutorService updateTimeThreadExecutor = Executors.newSingleThreadExecutor();
     LineGraphSeries<DataPoint> graphSeries;
+    int secs=0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +58,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         graphView = (GraphView)findViewById(R.id.graph);
         graphSeries  = new LineGraphSeries<DataPoint>();
+
+        graphView.getViewport().setXAxisBoundsManual(true);
         graphView.getViewport().setYAxisBoundsManual(true);
 //        graphView.getViewport().setMinY(-5);
 //        graphView.getViewport().setMaxY(+5);
@@ -69,10 +67,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         graphView.getViewport().setScrollableY(true);
 //        graphView.getViewport().setScrollable(true);
         gridLabelRenderer = graphView.getGridLabelRenderer();
+
         startButton.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
                 startTime = SystemClock.uptimeMillis();
                 customHandler.postDelayed(updateTimeThread, 0);
+//                customHandler.postDelayed(updateChartThread,0);
             }
         });
         stopButton.setOnClickListener(new View.OnClickListener(){
@@ -95,24 +95,29 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     Runnable updateTimeThread = new Runnable(){
         public void run(){
             timeInMilliseconds = SystemClock.uptimeMillis() - startTime;
-            updateTime = timeSwapBuff + timeInMilliseconds;
-            roadCounter.CountRoad(acc, timeInMilliseconds);
-            int secs = (int)(updateTime/1000);
-            int mins = secs/60;
-            secs %= 60;
-            int milliseconds = (int)(updateTime%1000);
+            updateTime = (double)(timeInMilliseconds /1000);
+            roadCounter.CountRoad(acc, updateTime);
+            secs = (int) (updateTime/1000);
+            secs %=60;
             roadText.setText("Przyspieszenie a="+acc[0] +"\n"
-//                    +String.format("%2d", secs) + ":"
+                    + String.format("%2d", secs) + ": "
 //                    + String.format("%3d", milliseconds) + "\n"
                     + "Przebyta droga: " + roadCounter.road+"m" + "\n"
-//                    + "aktualny czas: " + timeInMilliseconds + "\n"
+                    + "aktualny czas: " + updateTime + "\n"
 //                    + "pochodna przyspieszenia: " + roadCounter.da_by_dt + "\n"
 //                    + "średnia pochodna przyspieszenia: " + roadCounter.da_by_dtMean + "\n"
 //                    + "getHighestValueX: " + graphSeries.getHighestValueX()+ "\n"
                       + "Srednia z przyspieszenia  : " + roadCounter.accMean+ "\n"
                       + "Srednia z przyspieszenia2: " + roadCounter.bigAccMean+ "\n"
                       +  "Licznik" + roadCounter.signChangeCounter);
-            graphView.getViewport().setXAxisBoundsManual(true);
+
+            customHandler.postDelayed(this, 150);
+        }
+    };
+
+    Runnable updateChartThread = new Runnable() {
+        @Override
+        public void run() {
             graphView.getViewport().setMinX(secs-10000);
             graphView.getViewport().setMaxX(secs);
             graphView.getViewport().setMinY(roadCounter.accMean - 1.5);
@@ -122,33 +127,16 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             graphView.getGridLabelRenderer().setLabelFormatter(new DefaultLabelFormatter() {
                 @Override
                 public String formatLabel(double value, boolean isValueX) {
-                if(isValueX)
-                    return super.formatLabel((int)(value/1000), isValueX)+ "s";
-                else
-                    return super.formatLabel(value, isValueX);
+                    if(isValueX)
+                        return super.formatLabel((int)(value/1000), isValueX)+ "s";
+                    else
+                        return super.formatLabel(value, isValueX);
                 }
             });
-            customHandler.postDelayed(this, 100);
+            customHandler.postDelayed(this, 200);
         }
     };
 
-    Runnable onReset = new Runnable(){
-        public void run(){
-            graphSeries.resetData(generateData());
-            customHandler.postDelayed(this, 10000);
-        }
-    };
-
-    private DataPoint[] generateData() {
-        int count = 1;
-        DataPoint[] values = new DataPoint[count];
-        for (int i=0; i<count; i++) {
-            double x = i+10;
-            DataPoint v = new DataPoint(timeInMilliseconds-10000+i,7);
-            values[i] = v;
-        }
-        return values;
-    }
     Future updateTimeThreadFuture = updateTimeThreadExecutor.submit(updateTimeThread);
 
     @Override

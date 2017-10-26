@@ -23,7 +23,8 @@ public class RoadCounter {
     float acceleration_i_minus_one;
     int buffor = 4;
     int constBuffor = 10;
-    Boolean oneStep;
+    Boolean oneStep = false;
+    Boolean once = false;
 
     public RoadCounter(){
         road = 0;
@@ -78,16 +79,11 @@ public class RoadCounter {
     }
 
     public void CountRoad(float[] acceleration, double i_time){
-        if(acceleration[1] < 9.3 || acceleration[0] > 2 /*|| Math.abs(acceleration[0]) < 0.2*/){
-//            accMean = 0;
-//            accVec.clear();
-//            for (int i=0; i<accVec.capacity(); i++){
-//                accVec.add(0.0f);
-//            }
-//            constAccVector.clear();
+        if(acceleration[1] < 9.4){
+
             return;
         }
-        double deltaTime = (i_time - i_minus_one_time)/1000;
+        double deltaTime = (i_time - i_minus_one_time);
 //        accChange(acceleration, deltaTime);
         for(int i = accVec.capacity()-1; i >= 1; i--){
             accVec.set(i,accVec.elementAt(i-1));
@@ -98,10 +94,8 @@ public class RoadCounter {
             sumOfAcc += acc;
         }
         accMean = sumOfAcc / buffor;
-//        if(accMean>1)
-//            accMean = 0;
         constMeanReset(acceleration);
-        if(oneStep) {
+        if(/*oneStep*/true) {
             velocity = Math.abs(accMean) * deltaTime;
             road += velocity * deltaTime;
             road /= signChangeCounter;
@@ -109,10 +103,10 @@ public class RoadCounter {
         i_minus_one_time = i_time;
     }
 
-    private void accChange(float[] acceleration, double deletaTime){
+    private void accChange(float[] acceleration, double deltaTime){
         Boolean minusSign = false;
         Boolean plusSign = false;
-        da_by_dt = Math.round(acceleration[0]/deletaTime);
+        da_by_dt = Math.round(acceleration[0]/deltaTime);
         for(int i = accVec.capacity()-1; i >= 1; i--){
             accVec.set(i,accVec.elementAt(i-1));
         }
@@ -120,7 +114,7 @@ public class RoadCounter {
         for(int i = deltaTimeVector.capacity()-1; i >= 1; i--){
             deltaTimeVector.set(i, deltaTimeVector.elementAt(i-1));
         }
-        deltaTimeVector.set(0,deletaTime);
+        deltaTimeVector.set(0,deltaTime);
 
         float accSum = 0;
         double deltaSum = 0;
@@ -138,22 +132,22 @@ public class RoadCounter {
         }
         da_by_dtMean = Math.round(accSum/deltaSum);
 
-        if(plusSign == true && minusSign == true && Math.abs(da_by_dtMean) > 2)
-        {
-            signChangeCounter++;
-            deltaTimeVector.clear();
-            da_by_dtVector.clear();
-            accVec.clear();
-            for (int i=0; i<accVec.capacity(); i++){
-                accVec.add(0.0f);
-            }
-            for (int i=0; i<da_by_dtVector.capacity(); i++){
-                da_by_dtVector.add(0.0);
-            }
-            for (int i=0; i<deltaTimeVector.capacity(); i++){
-                deltaTimeVector.add(0.0);
-            }
-        }
+//        if(plusSign == true && minusSign == true && Math.abs(da_by_dtMean) > 2)
+//        {
+//            signChangeCounter++;
+//            deltaTimeVector.clear();
+//            da_by_dtVector.clear();
+//            accVec.clear();
+//            for (int i=0; i<accVec.capacity(); i++){
+//                accVec.add(0.0f);
+//            }
+//            for (int i=0; i<da_by_dtVector.capacity(); i++){
+//                da_by_dtVector.add(0.0);
+//            }
+//            for (int i=0; i<deltaTimeVector.capacity(); i++){
+//                deltaTimeVector.add(0.0);
+//            }
+//        }
 
 //        if(!accVec.contains(0)){
 //            accVec.clear();
@@ -191,7 +185,7 @@ public class RoadCounter {
             sum += acc;
         }
         bigAccMean = sum / constBuffor;
-        if (Math.abs(accMean) <= Math.abs(bigAccMean) + 0.1f){
+        if (Math.abs(accMean) <= Math.abs(bigAccMean) + 0.05f){
             oneStep = false;
             accMean = 0;
             accVec.clear();
@@ -199,8 +193,8 @@ public class RoadCounter {
                 accVec.add(0.0f);
             }
         }
-        else if (oneStep == false) {
-            signChangeCounter++;
+        else if (oneStep == false){
+//            signChangeCounter++;
             oneStep = true;
         }
     }
