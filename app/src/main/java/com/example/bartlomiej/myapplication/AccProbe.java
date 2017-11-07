@@ -27,6 +27,7 @@ public class AccProbe {
     public Boolean probingEnded = false;
     Boolean checkExit = true;
     int movementCounter = 0;
+    //TODO tu trzeba tez dac buffor dla dla osi Y i dla Z
     private double Y_axOffset = 0.5;
     private double Z_axOffset = 0.7;
     Boolean goodToStartMovement = false;
