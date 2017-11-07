@@ -44,7 +44,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         setContentView(R.layout.activity_main);
 //        roadCounter = new RoadCounter();
         SM = (SensorManager)getSystemService(SENSOR_SERVICE);
-        mySensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        //TODO tutaj pobawić się dwoma typami accelerometru i żyroskopu
+        mySensor = SM.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         SM.registerListener(this, mySensor, SensorManager.SENSOR_DELAY_GAME);
         dataSave = new DataSave();
         accProbe = new AccProbe();

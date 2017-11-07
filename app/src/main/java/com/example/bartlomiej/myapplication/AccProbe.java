@@ -28,8 +28,8 @@ public class AccProbe {
     Boolean checkExit = true;
     int movementCounter = 0;
     //TODO tu trzeba tez dac buffor dla dla osi Y i dla Z
-    private double Y_axOffset = 0.5;
-    private double Z_axOffset = 0.7;
+    private double Y_axOffset = 0.7;
+    private double Z_axOffset = 3.8;
     Boolean goodToStartMovement = false;
 
     public AccProbe(){
@@ -93,9 +93,9 @@ public class AccProbe {
 
     void xMovementSentinel (float[] acceleration){
         Boolean Y_ax_good, Z_ax_good;
-        Y_ax_good = acceleration[1] > 9.7 - Y_axOffset && acceleration[1] < 9.7 + Y_axOffset ? true : false;
-        Z_ax_good = acceleration[2] > 0   - Z_axOffset && acceleration[2] < 0   + Z_axOffset ? true : false;
-        goodToStartMovement = Y_ax_good && Z_ax_good ? true : false;
+        Y_ax_good = acceleration[1] > 9.7 - Y_axOffset && acceleration[1] < 9.7 + Y_axOffset;
+        Z_ax_good = acceleration[2] > 0 - Z_axOffset && acceleration[2] < 0 + Z_axOffset;
+        goodToStartMovement = Y_ax_good && Z_ax_good;
     }
 
     /**
