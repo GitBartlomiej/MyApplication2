@@ -13,12 +13,8 @@
         android:orientation="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:layout_editor_absoluteX="10dp">
-
-        <com.jjoe64.graphview.GraphView
-            android:id="@+id/graph"
-            android:layout_width="match_parent"
-            android:layout_height="116dp" />
+        tools:layout_editor_absoluteX="10dp"
+        android:weightSum="1">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -73,19 +69,45 @@
                 android:text="STOP" />
 
             <Button
-                android:id="@+id/Resize"
+                android:id="@+id/Reset"
                 android:layout_width="112dp"
                 android:layout_height="wrap_content"
-                android:text="Resize/reset" />
+                android:text="Reset" />
 
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/Road"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="191dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/Road"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:layout_weight="1"
-            android:text="Road" />
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/RoadLAP"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="Cała Droga" />
+
+            <TextView
+                android:id="@+id/roadLAPdiff"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="Odcinki" />
+        </LinearLayout>
 
     </LinearLayout>
 

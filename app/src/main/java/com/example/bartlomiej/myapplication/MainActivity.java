@@ -21,12 +21,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener{
-    private TextView xText, yText, zText, roadText;
+    private TextView xText, yText, zText, roadText, roadLAPText, roadLAPdiffText;
 
     private GraphView graphView;
     private GridLabelRenderer gridLabelRenderer;
     private SensorManager mSensorManager;
-    private Button startButton, stopButton, resizeButton;
+    private Button startButton, stopButton, resetButton;
     private float[] acc;
     double startTime = 0.0, timeInMilliseconds = 0.0, updateTime = 0.0;
     Handler customHandler = new Handler();
@@ -53,22 +53,24 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         yText = (TextView)findViewById(R.id.yText);
         zText = (TextView)findViewById(R.id.zText);
         roadText = (TextView)findViewById(R.id.Road);
+        roadLAPText = (TextView)findViewById(R.id.RoadLAP);
+        roadLAPdiffText = (TextView)findViewById(R.id.roadLAPdiff);
 
         startButton = (Button)findViewById(R.id.START);
         stopButton  = (Button)findViewById(R.id.STOP);
-        resizeButton  = (Button)findViewById(R.id.Resize);
+        resetButton = (Button)findViewById(R.id.Reset);
 
-        graphView = (GraphView)findViewById(R.id.graph);
-        graphSeries  = new LineGraphSeries<DataPoint>();
-
-        graphView.getViewport().setXAxisBoundsManual(true);
-        graphView.getViewport().setYAxisBoundsManual(true);
-//        graphView.getViewport().setMinY(-5);
-//        graphView.getViewport().setMaxY(+5);
-        graphView.getViewport().setScalableY(true);
-        graphView.getViewport().setScrollableY(true);
-//        graphView.getViewport().setScrollable(true);
-        gridLabelRenderer = graphView.getGridLabelRenderer();
+////        graphView = (GraphView)findViewById(R.id.graph);
+//        graphSeries  = new LineGraphSeries<DataPoint>();
+//
+//        graphView.getViewport().setXAxisBoundsManual(true);
+//        graphView.getViewport().setYAxisBoundsManual(true);
+////        graphView.getViewport().setMinY(-5);
+////        graphView.getViewport().setMaxY(+5);
+//        graphView.getViewport().setScalableY(true);
+//        graphView.getViewport().setScrollableY(true);
+////        graphView.getViewport().setScrollable(true);
+//        gridLabelRenderer = graphView.getGridLabelRenderer();
 
         startButton.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
@@ -82,12 +84,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 updateTimeThreadFuture.cancel(true);
                 customHandler.removeCallbacks(updateTimeThread);
                 startTime = 0;
-//                roadCounter.reset();
             }
         });
-        resizeButton.setOnClickListener(new View.OnClickListener(){
+        resetButton.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
                 accProbe.road = 0;
+                roadLAPText.setText("Cała Droga");
+                roadLAPdiffText.setText("Odcinki");
+                accProbe.movementCounter = 0;
+                accProbe.roadBuff = accProbe.prevRoadBuff =0;
             }
         });
     }
@@ -97,29 +102,31 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             timeInMilliseconds = SystemClock.uptimeMillis() - startTime;
             updateTime = timeInMilliseconds /1000;
 
-            double deltaTime =updateTime - timeBuffor;
+            double deltaTime = updateTime - timeBuffor;
 
-            accProbe.produceAccMeanAndBuffForAcc(accelerationX);
-            accProbe.startProbing();
-            accProbe.countRoad(deltaTime, prevAcc);
-            accProbe.endProbing();
-            accProbe.movementCounting();
+            accProbe.startCountingProcedure(accelerationX, deltaTime, prevAcc);
 
 //            dataSave.saveDataToFile(updateTime, roadCounter.road, roadCounter.velocity, acc,
 //                    roadCounter.accMean, roadCounter.bigAccMean);
-            secs = (int)(updateTime/1000);
-            secs %= 60;
             roadText.setText("aktualny czas: " + updateTime + "\n"
-                    + "Srednia z przyspieszenia  : " + accProbe.accMean+ "\n"
+                    + "Srednia z przyspieszenia: " + accProbe.accMean+ "\n"
                     + "goodToStartMovement: " + accProbe.goodToStartMovement + "\n"
                     + "movement Counter: " + accProbe.movementCounter + "\n"
                     + "probingStarted: " + accProbe.probingStarted + "\n"
-                    + "probingEnded: " + accProbe.probingEnded + "\n"
-                    + "DROGA: " + accProbe.road + "\n"
+                    + "probingEnded: " + accProbe.probingEnded + "\n\n"
+                    + "DROGA: " + accProbe.meanRoad + "\n"
             );
+
+            if(accProbe.movementCounter!=accProbe.movementCounterBuff){
+                accProbe.movementCounterBuff = accProbe.movementCounter;
+                double diff = accProbe.roadBuff - accProbe.prevRoadBuff;
+                roadLAPText.append("\n" + String.valueOf(accProbe.roadBuff));
+                roadLAPdiffText.append("\n" + String.valueOf(diff) );
+                accProbe.prevRoadBuff = accProbe.roadBuff;
+            }
             prevAcc = accProbe.accMean;
             timeBuffor = updateTime;
-            customHandler.postDelayed(this, 50);
+            customHandler.postDelayed(this, 100);
         }
     };
 
@@ -151,7 +158,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     public void onSensorChanged(SensorEvent sensorEvent) {
         switch(sensorEvent.sensor.getType()){
             case Sensor.TYPE_ACCELEROMETER:
-                accelerationX = sensorEvent.values[0];
                 accProbe.xMovementSentinel(sensorEvent.values);
                 xText.setText("X: " + sensorEvent.values[0]);
                 yText.setText("Y: " + sensorEvent.values[1]);
@@ -159,6 +165,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 break;
 
             case Sensor.TYPE_LINEAR_ACCELERATION:
+                accelerationX = sensorEvent.values[0];
                 break;
 
             case Sensor.TYPE_GYROSCOPE:

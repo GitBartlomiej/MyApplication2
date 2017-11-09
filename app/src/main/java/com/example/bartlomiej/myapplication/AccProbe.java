@@ -15,21 +15,25 @@ public class AccProbe {
     // ewentualne odpalenie liczenia drogi
     public double threshold = 0.15;
 
-    // bufor dla przyspieszenia dla 3 kroków do przodu
+    // Do liczenia sredniej
     Vector<Double> accVec;
-    public double accMean;
-    public int accMeanBuffRange = 2;
+    // do sprawdzania w 3 krokach
     double[] bufforForAccMean;
-    // liczba kroków czsowych po któryych zostanie zatwierdzony pomiar
-    public int accBuffRange = 2;
 
+    public int accBuffSteps = 2;
+    public int accMeanBuffRange = 2;
+
+    public double accMean;
     private double prevAcc = 0;
 
     int movementCounter = 0;
 
     public double road = 0;
-    double velocity =0;
-    double velocityBuff =0;
+    double roadBuff = 0;
+    double meanRoad = 0;
+    double velocity = 0;
+    double prevRoadBuff = 0;
+    int movementCounterBuff = 0;
 
 
     //TODO tu trzeba tez dac buffor dla dla osi Y i dla Z
@@ -42,8 +46,8 @@ public class AccProbe {
     private Boolean onceStartProbing = false;
 
     public AccProbe(){
-        accVec = new Vector<Double>(accMeanBuffRange);
-        bufforForAccMean = new double[accBuffRange];
+        accVec = new Vector<Double>(accBuffSteps);
+        bufforForAccMean = new double[accMeanBuffRange];
         //początkowa inicjalizacja buffora
         for (int i = 0; i < bufforForAccMean.length; i++){
             bufforForAccMean[i] = 0;
@@ -61,6 +65,14 @@ public class AccProbe {
         }
     }
 
+    public void startCountingProcedure(double accelerationX, double deltaTime, double prevAcc){
+        produceAccMeanAndBuffForAcc(accelerationX);
+        startProbing();
+        countRoad(deltaTime, prevAcc);
+        endProbing();
+        movementCounting();
+    }
+
     /**
     Funkcja sprawdza czy przyspieszenie przekroczyło zadaną wartość progową w określonej liczbie kroków czasowych.
     This function checks if acceleration exceed the set threshold value in set number of time steps.
@@ -72,7 +84,7 @@ public class AccProbe {
             if(acc > threshold){
                 counter++;
             }
-            if(counter == accBuffRange){
+            if(counter == accBuffSteps){
                 onceStartProbing = true;
                 probingStarted = true;
             }
@@ -88,7 +100,7 @@ public class AccProbe {
                 if ((acc > -threshold) && (acc < threshold)) {
                     counter++;
                 }
-                if (counter == accBuffRange) {
+                if (counter == accBuffSteps) {
                     probingEnded = true;
                     return;
                 }
@@ -101,17 +113,12 @@ public class AccProbe {
     void movementCounting(){
         if (probingStarted == true && probingEnded == true && goodToStartMovement == true){
             movementCounter++;
-            road /= movementCounter;
+            meanRoad = road / movementCounter;
             probingStarted = probingEnded = false;
             onceStartProbing = false;
+            velocity = 0;
+            accMean = 0;
         }
-    }
-
-    void xMovementSentinel (float[] acceleration){
-        Boolean Y_ax_good, Z_ax_good;
-        Y_ax_good = acceleration[1] > 9.7 - Y_axOffset && acceleration[1] < 9.7 + Y_axOffset;
-        Z_ax_good = acceleration[2] > 0 - Z_axOffset && acceleration[2] < 0 + Z_axOffset;
-        goodToStartMovement = Y_ax_good && Z_ax_good;
     }
 
     /**
@@ -120,7 +127,7 @@ public class AccProbe {
      * @param acceleration
      */
     void produceAccMeanAndBuffForAcc(double acceleration){
-        for (int i = accVec.capacity()-1; i >= 1; i--){
+        for (int i = accMeanBuffRange - 1; i >= 1; i--){
             accVec.set(i, accVec.elementAt(i-1));
         }
         accVec.set(0, acceleration);
@@ -131,7 +138,7 @@ public class AccProbe {
         accMean = sumOfAcc / accMeanBuffRange;
 
         // aktualizacja accBuffRange
-        for(int i = accBuffRange -1; i>=1; i--){
+        for(int i = accBuffSteps -1; i>=1; i--){
             bufforForAccMean[i] = bufforForAccMean[i-1];
         }
         bufforForAccMean[0] = accMean;
@@ -139,17 +146,17 @@ public class AccProbe {
 
     public void countRoad(double deltaTime, double prevAcc){
         if(probingStarted==true && probingEnded == false && goodToStartMovement == true){
-//            double deltaTime = time - timeBuffor;
-//
             velocity += accMean * deltaTime ;
-            road += Math.abs(velocity * deltaTime /*+ velocityBuff*deltaTime*/)/2;
-            velocityBuff = velocity;
-
-//            double C_i = prevAcc * deltaTime;
-//            road += Math.abs((accMean * deltaTime * deltaTime)+ C_i * deltaTime);
-//            prevAcc = accMean;
-//            timeBuffor = time;
+            road += Math.abs(velocity * deltaTime);
+            roadBuff += Math.abs(velocity * deltaTime);
         }
+    }
+
+    void xMovementSentinel (float[] acceleration){
+        Boolean Y_ax_good, Z_ax_good;
+        Y_ax_good = acceleration[1] > 9.7 - Y_axOffset && acceleration[1] < 9.7 + Y_axOffset;
+        Z_ax_good = acceleration[2] > 0 - Z_axOffset && acceleration[2] < 0 + Z_axOffset;
+        goodToStartMovement = Y_ax_good && Z_ax_good;
     }
 
     /**
