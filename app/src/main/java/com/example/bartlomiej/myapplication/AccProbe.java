@@ -11,33 +11,42 @@ import java.util.Vector;
  */
 
 public class AccProbe {
-    // liczba kroków czsowych po któryych zostanie zatwierdzony pomiar
-    public int accBuffRange = 3;
     // próg wartości przyspieszenia, powyżej której następuje liczenie kroków czasowych i
     // ewentualne odpalenie liczenia drogi
-    public double threshold = 0.20;
+    public double threshold = 0.15;
+
     // bufor dla przyspieszenia dla 3 kroków do przodu
-    double[] bufforForAcc;
-    // bufor dla meanAcc o pojemnosci 3
-    double[] bufforForAccMean;
-    public int accMeanBuffRange = 3;
-    Vector<Float> accVec;
+    Vector<Double> accVec;
     public double accMean;
-    public Boolean probingStarted = false;
-    public Boolean probingEnded = false;
-    Boolean checkExit = true;
+    public int accMeanBuffRange = 2;
+    double[] bufforForAccMean;
+    // liczba kroków czsowych po któryych zostanie zatwierdzony pomiar
+    public int accBuffRange = 2;
+
+    private double prevAcc = 0;
+
     int movementCounter = 0;
+
+    public double road = 0;
+    double velocity =0;
+    double velocityBuff =0;
+
+
     //TODO tu trzeba tez dac buffor dla dla osi Y i dla Z
     private double Y_axOffset = 0.7;
     private double Z_axOffset = 3.8;
-    Boolean goodToStartMovement = false;
+
+    public Boolean probingStarted = false;
+    public Boolean probingEnded = false;
+    public Boolean goodToStartMovement = false;
+    private Boolean onceStartProbing = false;
 
     public AccProbe(){
-        accVec = new Vector<Float>(accMeanBuffRange);
-        bufforForAcc = new double[accBuffRange];
+        accVec = new Vector<Double>(accMeanBuffRange);
+        bufforForAccMean = new double[accBuffRange];
         //początkowa inicjalizacja buffora
-        for (int i = 0; i < bufforForAcc.length; i++){
-            bufforForAcc[i] = 0;
+        for (int i = 0; i < bufforForAccMean.length; i++){
+            bufforForAccMean[i] = 0;
         }
 
         bufforForAccMean = new double[accMeanBuffRange];
@@ -48,7 +57,7 @@ public class AccProbe {
 
         accVec.clear();
         for (int i=0; i<accVec.capacity(); i++){
-            accVec.add(0.0f);
+            accVec.add(0.0);
         }
     }
 
@@ -57,37 +66,44 @@ public class AccProbe {
     This function checks if acceleration exceed the set threshold value in set number of time steps.
      */
     void startProbing(){
+        if (onceStartProbing == true && goodToStartMovement == false) return;
         int counter = 0;
-        for (double acc : bufforForAcc){
+        for (double acc : bufforForAccMean){
             if(acc > threshold){
                 counter++;
             }
             if(counter == accBuffRange){
+                onceStartProbing = true;
                 probingStarted = true;
             }
         }
-        //zaznaczyć że od tego momentu czasowego rozpoczyna się pomiar
-
+//        probingStarted = false;
     }
 
     void endProbing(){
-        if (probingStarted == false) return;
-        int counter = 0;
-        for (double acc : bufforForAcc){
-            if ((acc > -threshold) && (acc < threshold)){
-                counter++;
-            }
-            if (counter == accBuffRange){
-                probingEnded = true;
-                return;
+        if (goodToStartMovement == false) return;
+        if (probingStarted == true) {
+            int counter = 0;
+            for (double acc : bufforForAccMean) {
+                if ((acc > -threshold) && (acc < threshold)) {
+                    counter++;
+                }
+                if (counter == accBuffRange) {
+                    probingEnded = true;
+                    return;
+                }
             }
         }
-        probingEnded =false;
+        else
+            probingEnded = false;
     }
+
     void movementCounting(){
-        if (probingStarted == true && probingEnded == true){
+        if (probingStarted == true && probingEnded == true && goodToStartMovement == true){
             movementCounter++;
+            road /= movementCounter;
             probingStarted = probingEnded = false;
+            onceStartProbing = false;
         }
     }
 
@@ -99,32 +115,15 @@ public class AccProbe {
     }
 
     /**
-     * Funkcja badająca zmiennośc przyspieszenia. Czy jest rosnące czy nie.
-     * Function which probe the changeability of acceleration. It checks if function of acceleration
-     * is increasing or decreasing.
-     * @return true jeśli funkcja przyspieszenia jest rosnąca
-     */
-    Boolean increasingFunction(){
-        for(int i = accMeanBuffRange -1; i>=1; i--){
-            bufforForAccMean[i] = bufforForAccMean[i-1];
-        }
-        bufforForAccMean[0] = accMean;
-        if((bufforForAccMean[0] > bufforForAccMean[1]) && ((bufforForAccMean[1] > bufforForAccMean[2]))){
-            return true;
-        }
-        return false;
-    }
-
-    /**
      * Funkcja licząca śrdnie przyspieszenie na podstawie 3 punktów pomiarowych
      * Function which counting mean acceleration base on 3 measure points
      * @param acceleration
      */
-    void produceAccMeanAndBuffForaAcc (float[] acceleration){
+    void produceAccMeanAndBuffForAcc(double acceleration){
         for (int i = accVec.capacity()-1; i >= 1; i--){
             accVec.set(i, accVec.elementAt(i-1));
         }
-        accVec.set(0, acceleration[0]);
+        accVec.set(0, acceleration);
         double sumOfAcc = 0;
         for (double acc : accVec) {
             sumOfAcc += acc;
@@ -133,10 +132,24 @@ public class AccProbe {
 
         // aktualizacja accBuffRange
         for(int i = accBuffRange -1; i>=1; i--){
-            bufforForAcc[i] = bufforForAcc[i-1];
+            bufforForAccMean[i] = bufforForAccMean[i-1];
         }
-        bufforForAcc[0] = accMean;
+        bufforForAccMean[0] = accMean;
+    }
 
+    public void countRoad(double deltaTime, double prevAcc){
+        if(probingStarted==true && probingEnded == false && goodToStartMovement == true){
+//            double deltaTime = time - timeBuffor;
+//
+            velocity += accMean * deltaTime ;
+            road += Math.abs(velocity * deltaTime /*+ velocityBuff*deltaTime*/)/2;
+            velocityBuff = velocity;
+
+//            double C_i = prevAcc * deltaTime;
+//            road += Math.abs((accMean * deltaTime * deltaTime)+ C_i * deltaTime);
+//            prevAcc = accMean;
+//            timeBuffor = time;
+        }
     }
 
     /**

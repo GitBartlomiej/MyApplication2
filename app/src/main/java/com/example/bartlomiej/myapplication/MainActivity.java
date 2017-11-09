@@ -1,5 +1,4 @@
 package com.example.bartlomiej.myapplication;
-
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -23,11 +22,10 @@ import java.util.concurrent.Future;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener{
     private TextView xText, yText, zText, roadText;
+
     private GraphView graphView;
     private GridLabelRenderer gridLabelRenderer;
-    private Sensor mySensor;
-    private SensorManager SM;
-//    private RoadCounter roadCounter;
+    private SensorManager mSensorManager;
     private Button startButton, stopButton, resizeButton;
     private float[] acc;
     double startTime = 0.0, timeInMilliseconds = 0.0, updateTime = 0.0;
@@ -37,16 +35,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     int secs=0;
     private DataSave dataSave;
     private AccProbe accProbe;
+    double accelerationX;
+    public double timeBuffor = 0;
+    public double prevAcc = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-//        roadCounter = new RoadCounter();
-        SM = (SensorManager)getSystemService(SENSOR_SERVICE);
-        //TODO tutaj pobawić się dwoma typami accelerometru i żyroskopu
-        mySensor = SM.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        SM.registerListener(this, mySensor, SensorManager.SENSOR_DELAY_GAME);
+
+        initListeners();
+
         dataSave = new DataSave();
         accProbe = new AccProbe();
 
@@ -88,9 +87,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         });
         resizeButton.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
-//                roadCounter.signChangeCounter = 1;
-//                roadCounter.accMean = 0;
-//                roadCounter.road = 0;
+                accProbe.road = 0;
             }
         });
     }
@@ -99,21 +96,29 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         public void run(){
             timeInMilliseconds = SystemClock.uptimeMillis() - startTime;
             updateTime = timeInMilliseconds /1000;
-//            roadCounter.CountRoad(acc, updateTime);
+
+            double deltaTime =updateTime - timeBuffor;
+
+            accProbe.produceAccMeanAndBuffForAcc(accelerationX);
             accProbe.startProbing();
+            accProbe.countRoad(deltaTime, prevAcc);
             accProbe.endProbing();
             accProbe.movementCounting();
+
 //            dataSave.saveDataToFile(updateTime, roadCounter.road, roadCounter.velocity, acc,
 //                    roadCounter.accMean, roadCounter.bigAccMean);
-            secs = (int) (updateTime/1000);
+            secs = (int)(updateTime/1000);
             secs %= 60;
-            roadText.setText("Przyspieszenie a = " + acc[0] +"\n"
-                    + "aktualny czas: " + updateTime + "\n"
+            roadText.setText("aktualny czas: " + updateTime + "\n"
                     + "Srednia z przyspieszenia  : " + accProbe.accMean+ "\n"
                     + "goodToStartMovement: " + accProbe.goodToStartMovement + "\n"
                     + "movement Counter: " + accProbe.movementCounter + "\n"
                     + "probingStarted: " + accProbe.probingStarted + "\n"
-                    + "probingEnded: " + accProbe.probingEnded + "\n");
+                    + "probingEnded: " + accProbe.probingEnded + "\n"
+                    + "DROGA: " + accProbe.road + "\n"
+            );
+            prevAcc = accProbe.accMean;
+            timeBuffor = updateTime;
             customHandler.postDelayed(this, 50);
         }
     };
@@ -144,16 +149,48 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
-        accProbe.produceAccMeanAndBuffForaAcc(sensorEvent.values);
-        accProbe.xMovementSentinel(sensorEvent.values);
-        acc = sensorEvent.values;
-        xText.setText("X: " + sensorEvent.values[0]);
-        yText.setText("Y: " + sensorEvent.values[1]);
-        zText.setText("Z: " + sensorEvent.values[2]);
+        switch(sensorEvent.sensor.getType()){
+            case Sensor.TYPE_ACCELEROMETER:
+                accelerationX = sensorEvent.values[0];
+                accProbe.xMovementSentinel(sensorEvent.values);
+                xText.setText("X: " + sensorEvent.values[0]);
+                yText.setText("Y: " + sensorEvent.values[1]);
+                zText.setText("Z: " + sensorEvent.values[2]);
+                break;
+
+            case Sensor.TYPE_LINEAR_ACCELERATION:
+                break;
+
+            case Sensor.TYPE_GYROSCOPE:
+//                xText.setText("X: " + sensorEvent.values[0]);
+//                yText.setText("Y: " + sensorEvent.values[1]);
+//                zText.setText("Z: " + sensorEvent.values[2]);
+                break;
+        }
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
 
+    }
+
+    private void initListeners(){
+        mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+                SensorManager.SENSOR_DELAY_GAME);
+
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
+                SensorManager.SENSOR_DELAY_GAME);
+
+        mSensorManager.registerListener(this,
+                mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE),
+                SensorManager.SENSOR_DELAY_GAME);
+
+//        mSensorManager.registerListener(this,
+//                mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
+//                SensorManager.SENSOR_DELAY_GAME);
     }
 }
