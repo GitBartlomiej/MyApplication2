@@ -54,7 +54,7 @@ public class DataSave {
         String[] data =  new String[8];
         if(once == false){
             data[0] = "time";
-            data[1] = "road";
+            data[1] = "totalRoad";
             data[2] = "velocity";
             data[3] = "acc_X";
             data[4] = "acc_Y";

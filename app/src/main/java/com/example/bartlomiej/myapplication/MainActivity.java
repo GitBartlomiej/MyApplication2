@@ -5,49 +5,25 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.jjoe64.graphview.GraphView;
-import com.jjoe64.graphview.GridLabelRenderer;
-import com.jjoe64.graphview.series.DataPoint;
-import com.jjoe64.graphview.series.LineGraphSeries;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-public class MainActivity extends AppCompatActivity implements SensorEventListener{
+public class MainActivity extends AppCompatActivity implements SensorEventListener, MovementFinishedListener{
     private TextView xText, yText, zText, roadText, roadLAPText, roadLAPdiffText;
-
-    private GraphView graphView;
-    private GridLabelRenderer gridLabelRenderer;
-    private SensorManager mSensorManager;
     private Button startButton, stopButton, resetButton;
-    private float[] acc;
-    double startTime = 0.0, timeInMilliseconds = 0.0, updateTime = 0.0;
+    double  updateTime = 0.0;
     Handler customHandler = new Handler();
-    ExecutorService updateTimeThreadExecutor = Executors.newSingleThreadExecutor();
-    LineGraphSeries<DataPoint> graphSeries;
-    int secs=0;
-    private DataSave dataSave;
-    private AccProbe accProbe;
-    double accelerationX;
-    public double timeBuffor = 0;
-    public double prevAcc = 0;
+//    private DataSave dataSave = new DataSave();
+    private Calculation calculation;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        initListeners();
-
-        dataSave = new DataSave();
-        accProbe = new AccProbe();
+        calculation = new Calculation((SensorManager)getSystemService(SENSOR_SERVICE), this);
 
         xText = (TextView)findViewById(R.id.xText);
         yText = (TextView)findViewById(R.id.yText);
@@ -74,58 +50,40 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         startButton.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
-                startTime = SystemClock.uptimeMillis();
+                calculation.start();
+
                 customHandler.postDelayed(updateTimeThread, 0);
 //                customHandler.postDelayed(updateChartThread,0);
             }
         });
         stopButton.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
-                updateTimeThreadFuture.cancel(true);
+                calculation.stop();
                 customHandler.removeCallbacks(updateTimeThread);
-                startTime = 0;
             }
         });
         resetButton.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
-                accProbe.road = 0;
+                calculation.reset();
                 roadLAPText.setText("Cała Droga");
                 roadLAPdiffText.setText("Odcinki");
-                accProbe.movementCounter = 0;
-                accProbe.roadBuff = accProbe.prevRoadBuff =0;
             }
         });
     }
 
     Runnable updateTimeThread = new Runnable(){
         public void run(){
-            timeInMilliseconds = SystemClock.uptimeMillis() - startTime;
-            updateTime = timeInMilliseconds /1000;
+            calculation.update();
 
-            double deltaTime = updateTime - timeBuffor;
+            AccProbe accProbe = calculation.getAccProbe();
 
-            accProbe.startCountingProcedure(accelerationX, deltaTime, prevAcc);
-
-//            dataSave.saveDataToFile(updateTime, roadCounter.road, roadCounter.velocity, acc,
-//                    roadCounter.accMean, roadCounter.bigAccMean);
             roadText.setText("aktualny czas: " + updateTime + "\n"
-                    + "Srednia z przyspieszenia: " + accProbe.accMean+ "\n"
+                    + "Srednia z przyspieszenia: " + accProbe.accMean + "\n"
                     + "goodToStartMovement: " + accProbe.goodToStartMovement + "\n"
                     + "movement Counter: " + accProbe.movementCounter + "\n"
-                    + "probingStarted: " + accProbe.probingStarted + "\n"
-                    + "probingEnded: " + accProbe.probingEnded + "\n\n"
+                    + "isCounting: " + accProbe.isCounting+ "\n"
                     + "DROGA: " + accProbe.meanRoad + "\n"
             );
-
-            if(accProbe.movementCounter!=accProbe.movementCounterBuff){
-                accProbe.movementCounterBuff = accProbe.movementCounter;
-                double diff = accProbe.roadBuff - accProbe.prevRoadBuff;
-                roadLAPText.append("\n" + String.valueOf(accProbe.roadBuff));
-                roadLAPdiffText.append("\n" + String.valueOf(diff) );
-                accProbe.prevRoadBuff = accProbe.roadBuff;
-            }
-            prevAcc = accProbe.accMean;
-            timeBuffor = updateTime;
             customHandler.postDelayed(this, 100);
         }
     };
@@ -152,26 +110,19 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 //        }
 //    };
 
-    Future updateTimeThreadFuture = updateTimeThreadExecutor.submit(updateTimeThread);
-
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         switch(sensorEvent.sensor.getType()){
             case Sensor.TYPE_ACCELEROMETER:
-                accProbe.xMovementSentinel(sensorEvent.values);
                 xText.setText("X: " + sensorEvent.values[0]);
                 yText.setText("Y: " + sensorEvent.values[1]);
                 zText.setText("Z: " + sensorEvent.values[2]);
                 break;
 
             case Sensor.TYPE_LINEAR_ACCELERATION:
-                accelerationX = sensorEvent.values[0];
                 break;
 
             case Sensor.TYPE_GYROSCOPE:
-//                xText.setText("X: " + sensorEvent.values[0]);
-//                yText.setText("Y: " + sensorEvent.values[1]);
-//                zText.setText("Z: " + sensorEvent.values[2]);
                 break;
         }
     }
@@ -181,23 +132,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     }
 
-    private void initListeners(){
-        mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
-
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
-                SensorManager.SENSOR_DELAY_GAME);
-
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
-                SensorManager.SENSOR_DELAY_GAME);
-
-        mSensorManager.registerListener(this,
-                mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE),
-                SensorManager.SENSOR_DELAY_GAME);
-
-//        mSensorManager.registerListener(this,
-//                mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
-//                SensorManager.SENSOR_DELAY_GAME);
+    @Override
+    public void movementFinished(Movement movement, double totalRoad) {
+        roadLAPText.append("\n" + String.valueOf(totalRoad));
+        roadLAPdiffText.append("\n" + String.valueOf(movement.getRoad()));
     }
 }
