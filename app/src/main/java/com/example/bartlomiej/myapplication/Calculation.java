@@ -12,22 +12,24 @@ import android.os.SystemClock;
 public class Calculation {
 
     private final AccProbe accProbe;
+    private final GyroProbe gyroProbe;
     private double startTime;
     private SensorManager mSensorManager;
+    MovementFinishedListener movementFinishedListener;
     double currentAccelerationX;
     public double prevTimeInSec = 0;
     private double currentTimeInSec;
 
     public Calculation(SensorManager mSensorManager, MovementFinishedListener movementFinishedListener) {
         this.mSensorManager = mSensorManager;
-        accProbe =  new AccProbe(movementFinishedListener);
+        this.movementFinishedListener = movementFinishedListener;
+        gyroProbe = new GyroProbe();
+        accProbe = new AccProbe(movementFinishedListener, gyroProbe);
         initListeners();
     }
 
-
-
     private void initListeners(){
-            mSensorManager.registerListener(new AccelerometerListener(),
+        mSensorManager.registerListener(new AccelerometerListener(),
                 mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
                 SensorManager.SENSOR_DELAY_GAME);
 
@@ -55,6 +57,11 @@ public class Calculation {
     public void reset(){
         accProbe.totalRoad = 0;
         accProbe.movementCounter = 0;
+        accProbe.accMean = 0;
+        accProbe.meanRoad = 0;
+        for(int i = 0; i <= accProbe.bufforForAccMean.length-1; i++){
+           accProbe.bufforForAccMean[i] = 0.0;
+        }
     }
 
     public void update(){
@@ -74,15 +81,16 @@ public class Calculation {
         prevTimeInSec = currentTimeInSec;
     }
 
-
     public AccProbe getAccProbe() {
         return accProbe;
     }
 
     private class AccelerometerListener extends BaseSensorListener{
         @Override
-        public void onSensorChanged(SensorEvent event) {
+        public void onSensorChanged(SensorEvent event){
             accProbe.xMovementSentinel(event.values);
+//            if(movementFinishedListener != null)
+//                movementFinishedListener.accelerationXYZvalues(event);
         }
     }
 
@@ -96,7 +104,9 @@ public class Calculation {
     private class GyroscopeListener extends BaseSensorListener{
         @Override
         public void onSensorChanged(SensorEvent event) {
-
+            gyroProbe.angleSentinel(event);
+            if(movementFinishedListener != null)
+                movementFinishedListener.accelerationXYZvalues(event);
         }
     }
 }

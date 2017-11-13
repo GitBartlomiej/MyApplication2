@@ -13,46 +13,46 @@ import java.util.Vector;
  */
 
 public class AccProbe {
+    private final GyroProbe gyroProbe;
+
     // próg wartości przyspieszenia, powyżej której następuje liczenie kroków czasowych i
     // ewentualne odpalenie liczenia drogi
     public double threshold = 0.15;
-
     // Do liczenia sredniej
     Vector<Double> accVec;
+
     // do sprawdzania w 3 krokach
     double[] bufforForAccMean;
-
     public int accBuffSteps = 2;
+
     public int accMeanBuffRange = 2;
 
     public double accMean;
 
-
     int movementCounter = 0;
-
     public double totalRoad = 0;
     double meanRoad = 0;
     double velocity = 0;
     double prevRoadBuff = 0;
     int movementCounterBuff = 0;
+    public boolean accGoodToStartMovement = false;
 
     //TODO tu trzeba tez dac buffor dla dla osi Y i dla Z
     private double Y_axOffset = 0.7;
     private double Z_axOffset = 3.8;
 
-    public Boolean probingStarted = false;
-    public Boolean probingEnded = false;
-    public Boolean goodToStartMovement = false;
     public boolean isCounting = false;
 
     private List<Movement> movements = new ArrayList<>();
     private MovementFinishedListener movementFinishedListener;
 
-    public AccProbe(MovementFinishedListener movementFinishedListener){
+    public AccProbe(MovementFinishedListener movementFinishedListener, GyroProbe gyroProbe){
         this.movementFinishedListener = movementFinishedListener;
+        this.gyroProbe = gyroProbe;
 
         accVec = new Vector<Double>(accMeanBuffRange);
         bufforForAccMean = new double[accBuffSteps];
+
         //początkowa inicjalizacja buffora
         for (int i = 0; i < bufforForAccMean.length; i++){
             bufforForAccMean[i] = 0;
@@ -72,12 +72,17 @@ public class AccProbe {
 
     public void startCountingProcedure(double accelerationX, double deltaTime){
         produceAccMeanAndBuffForAcc(accelerationX);
+
         if(canStartCounting()){
             isCounting = true;
             movements.add(new Movement());
         }
-        if(isCounting)
+
+        if(isCounting) {
+//            if(measurementNotCount()) return;
             countRoad(deltaTime);
+        }
+
         if(canStopCounting()){
             isCounting = false;
             movementCounter++;
@@ -94,10 +99,10 @@ public class AccProbe {
     This function checks if acceleration exceed the set threshold value in set number of time steps.
      */
     boolean canStartCounting(){
-        if (!goodToStartMovement || isCounting) return false;
+        if (!accGoodToStartMovement || !gyroProbe.gyroGoodToStartMovement || isCounting) return false;
         int counter = 0;
         for (double acc : bufforForAccMean){
-            if(acc > threshold){
+            if (acc > threshold){
                 counter++;
             }
         }
@@ -105,7 +110,7 @@ public class AccProbe {
     }
 
     boolean canStopCounting(){
-        if (goodToStartMovement == false || !isCounting) return false;
+        if (!accGoodToStartMovement || !gyroProbe.gyroGoodToStartMovement || !isCounting) return false;
         int counter = 0;
         for (double acc : bufforForAccMean) {
             if ((acc > -threshold) && (acc < threshold)) {
@@ -145,25 +150,22 @@ public class AccProbe {
     }
 
     void xMovementSentinel (float[] acceleration){
-        Boolean Y_ax_good, Z_ax_good;
+        boolean Y_ax_good, Z_ax_good;
         Y_ax_good = acceleration[1] > 9.7 - Y_axOffset && acceleration[1] < 9.7 + Y_axOffset;
         Z_ax_good = acceleration[2] > 0 - Z_axOffset && acceleration[2] < 0 + Z_axOffset;
-        goodToStartMovement = Y_ax_good && Z_ax_good;
+        accGoodToStartMovement = Y_ax_good && Z_ax_good;
     }
 
     Movement getLastMovement(){
         return movements.get(movements.size()-1);
     }
 
-    /**
-     * Liczenie minimum globalnego danego wykresu
-     */
-    void minimumOfFunction(){
-    }
-
-    /**
-     * Liczenie maksimum globalnego danego wykresu
-     */
-    void maximumOfFunction(){
+    boolean measurementNotCount(){
+        if((!gyroProbe.gyroGoodToStartMovement || !accGoodToStartMovement) && isCounting){
+            if(!movements.isEmpty())
+                movements.remove(movements.size()-1);
+            return true;
+        }
+        else return false;
     }
 }
